@@ -1,0 +1,44 @@
+name: Convox CI & Output Test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-deploy-test:
+    runs-on: ubuntu-latest
+
+    env:
+      CONVOX_HOST: ${{ secrets.CONVOX_HOST }} # e.g. rack.my-org.com
+      CONVOX_PASSWORD: ${{ secrets.CONVOX_PASSWORD }} # rack admin password
+      RACK_NAME: ${{ secrets.RACK_NAME }} # e.g. production
+      APP_NAME: ${{ secrets.APP_NAME }} # e.g. my-node-app
+
+    steps:
+      - name: 🛎️  Checkout code
+        uses: actions/checkout@v4
+
+      # curl -fsSL https://download.convox.com/cli/linux/convox -o convox
+      - name: 📥  Install Convox CLI
+        run: |
+          curl -fsSL https://convox.s3.amazonaws.com/release/20250530162117-dev/cli/linux/convox -o convox
+          chmod +x convox
+          sudo mv convox /usr/local/bin/convox
+          convox --version
+
+      - name: 🔐  Authenticate with Rack
+        run: |
+          convox login $CONVOX_HOST --password $CONVOX_PASSWORD
+          convox switch "$RACK_NAME"
+
+      # - name: 🚀  Deploy application
+      #   run: |
+      #     convox deploy --app "$APP_NAME" --wait
+      # script -q -e -c "convox run --app $APP_NAME web 'node /usr/src/app/counting.js'" /dev/null
+
+      - name: ✅  Run counting script
+        id: run_test
+        run: |
+          convox rack
+          convox run --app $APP_NAME web 'node /usr/src/app/counting.js'
